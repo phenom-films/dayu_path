@@ -266,11 +266,15 @@ class DayuPath(Path):
                     if v:
                         yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
                     else:
-                        yield None
+                        yield SequentialFiles(None, [], [])
                     raise StopIteration
 
-                for k, v in seq_list.items():
-                    yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                if seq_list:
+                    for k, v in seq_list.items():
+                        yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                else:
+                    yield SequentialFiles(None, [], [])
+                    raise StopIteration
 
         else:
             seq_list = {}
@@ -286,11 +290,15 @@ class DayuPath(Path):
                 if v:
                     yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
                 else:
-                    yield None
+                    yield SequentialFiles(None, [], [])
                 raise StopIteration
 
-            for k, v in seq_list.items():
-                yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+            if seq_list:
+                for k, v in seq_list.items():
+                    yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+            else:
+                yield SequentialFiles(None, [], [])
+                raise StopIteration
 
     def _show_in_win32(self, show_file=False):
         import os
