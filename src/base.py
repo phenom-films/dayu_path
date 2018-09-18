@@ -97,7 +97,7 @@ class DayuPath(Path):
         '''
         将绝对路径转换为pattern 形式的路径。
         :param pattern: '%' 表示变成%04d 类型的路径；'#' 表示变成#### 类型类型的路径；'$'表示变成$F4 类型的路径
-        :return: DiskPath 对象
+        :return: DayuPath 对象
         '''
         if self.ext and self.ext.lower() in tuple(EXT_SINGLE_MEDIA.keys()):
             return self
@@ -174,7 +174,7 @@ class DayuPath(Path):
         '''
         将pattern 化的序列帧，回复成为正常的帧数据对路径
         :param frame: int，可以是任意的正整数
-        :return: DiskPath 对象
+        :return: DayuPath 对象
         '''
         if frame is None:
             return self
@@ -206,7 +206,7 @@ class DayuPath(Path):
         扫描硬盘路径，可以是递归或者非递归。
         返回的文件总是会被加入 SequentialFiles() 这个数据结构中。
         如果.frames 为[]，表示是独立的文件，而不是序列文件。
-        如果用户希望是常规意义的遍历文件，请使用 DiskPath.walk() 方法。
+        如果用户希望是常规意义的遍历文件，请使用 DayuPath.walk() 方法。
 
         :param recursive: True，表示递归搜索；False 表示只搜索当前文件
         :return: list of SequentialFiles 对象
