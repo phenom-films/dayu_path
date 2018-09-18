@@ -262,8 +262,11 @@ class DayuPath(Path):
 
                 if file_flag:
                     k = self.absolute().to_pattern()
-                    v = seq_list[k]
-                    yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                    v = seq_list.get(k, None)
+                    if v:
+                        yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                    else:
+                        yield None
                     raise StopIteration
 
                 for k, v in seq_list.items():
@@ -279,8 +282,11 @@ class DayuPath(Path):
 
             if file_flag:
                 k = self.absolute().to_pattern()
-                v = seq_list[k]
-                yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                v = seq_list.get(k, None)
+                if v:
+                    yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                else:
+                    yield None
                 raise StopIteration
 
             for k, v in seq_list.items():
