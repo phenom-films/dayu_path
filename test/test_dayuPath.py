@@ -199,6 +199,8 @@ class TestDayuPath(TestCase):
             with open(file_path, 'w') as f:
                 f.write('1')
 
+        self.mock_path.child('empty_folder', 'inside').mkdir(parents=True)
+
     def tearDown(self):
         super(TestDayuPath, self).tearDown()
         self.mock_path.rmtree()
@@ -206,53 +208,58 @@ class TestDayuPath(TestCase):
     def test_scan(self):
         path = self.mock_path
 
-        try:
-            result = list(path.scan())
-            self.assertEqual(result[0].filename, path.child('first_depth_0010.%04d.dpx'))
-            self.assertEqual(result[0].frames, [1001, 1002])
-            self.assertEqual(result[0].missing, [])
+        result = list(path.scan())
+        self.assertEqual(result[0].filename, path.child('first_depth_0010.%04d.dpx'))
+        self.assertEqual(result[0].frames, [1001, 1002])
+        self.assertEqual(result[0].missing, [])
 
-            ground_truth_result = {path.child('first_depth_0010.%04d.dpx')                      : [[1001, 1002], []],
-                                   path.child('cam_test', 'A001C001_180212_RG8C.%07d.exr')      : [
-                                       [9876521, 9876522, 9876523], []],
-                                   path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr')         : [[1001, 1002, 1003],
-                                                                                                   []],
-                                   path.child('single_media_test', 'pl_0010_plt_v0001.1003.mov'): [[], []],
-                                   path.child('single_media_test', 'MVI1022.MP4')               : [[], []],
-                                   path.child(u'single_media_test', u'测试中文.MP4')                : [[], []],
-                                   path.child('missing_test', 'dd_0090_ani_%04d.jpg')           : [[1001, 1003, 1005],
-                                                                                                   [1002, 1004]],
-                                   path.child('recursive_test', 'a_%03d.exr')                   : [[1, 2], []],
-                                   path.child('recursive_test', 'inside', 'b_%03d.exr')         : [[100, 101, 102], []],
-                                   }
+        ground_truth_result = {path.child('first_depth_0010.%04d.dpx')                      : [[1001, 1002], []],
+                               path.child('cam_test', 'A001C001_180212_RG8C.%07d.exr')      : [
+                                   [9876521, 9876522, 9876523], []],
+                               path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr')         : [[1001, 1002, 1003],
+                                                                                               []],
+                               path.child('single_media_test', 'pl_0010_plt_v0001.1003.mov'): [[], []],
+                               path.child('single_media_test', 'MVI1022.MP4')               : [[], []],
+                               path.child(u'single_media_test', u'测试中文.MP4')                : [[], []],
+                               path.child('missing_test', 'dd_0090_ani_%04d.jpg')           : [[1001, 1003, 1005],
+                                                                                               [1002, 1004]],
+                               path.child('recursive_test', 'a_%03d.exr')                   : [[1, 2], []],
+                               path.child('recursive_test', 'inside', 'b_%03d.exr')         : [[100, 101, 102], []],
+                               }
 
-            for x in path.scan(recursive=True):
+        for x in path.scan(recursive=True):
+            if x.filename:
                 self.assertTrue(x.filename in ground_truth_result.keys())
                 self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
 
-            for x in path.child('vfx_test', 'pl_0010_plt_v0001.1001.exr').scan():
-                self.assertEqual(x.filename, path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr'))
-                self.assertEqual(x.frames, [1001, 1002, 1003])
-                self.assertEqual(x.missing, [])
+        for x in path.child('vfx_test', 'pl_0010_plt_v0001.1001.exr').scan():
+            self.assertEqual(x.filename, path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr'))
+            self.assertEqual(x.frames, [1001, 1002, 1003])
+            self.assertEqual(x.missing, [])
 
-            for x in path.child(u'single_media_test', u'测试中文.MP4').scan():
-                self.assertEqual(x.filename, path.child(u'single_media_test', u'测试中文.MP4'))
-                self.assertEqual(x.frames, [])
-                self.assertEqual(x.missing, [])
+        for x in path.child('missing_test').scan():
+            if x.filename:
+                self.assertEqual(x.filename, path.child('missing_test', 'dd_0090_ani_%04d.jpg'))
+                self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
 
-            for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan():
-                self.assertIsNone(x)
+        for x in path.child(u'single_media_test', u'测试中文.MP4').scan():
+            self.assertEqual(x.filename, path.child(u'single_media_test', u'测试中文.MP4'))
+            self.assertEqual(x.frames, [])
+            self.assertEqual(x.missing, [])
 
-            for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True):
-                self.assertIsNone(x)
+        for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan():
+            self.assertIsNone(x.filename)
 
-            self.assertNotIn(path.child('ignore_test', '._DS_store'), [x.filename for x in path.scan(recursive=True)])
-            self.assertNotIn(path.child('ignore_test', '..sdf'), [x.filename for x in path.scan(recursive=True)])
-            self.assertNotIn(path.child('ignore_test', 'Thumbnail'), [x.filename for x in path.scan(recursive=True)])
-            self.assertNotIn(path.child('ignore_test', 'temp.tmp'), [x.filename for x in path.scan(recursive=True)])
+        for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True):
+            self.assertIsNone(x.filename)
 
-        except Exception as e:
-            raise e
+        for x in path.child('empty_folder').scan(recursive=True):
+            self.assertIsNone(x.filename)
+
+        self.assertNotIn(path.child('ignore_test', '._DS_store'), [x.filename for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', '..sdf'), [x.filename for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', 'Thumbnail'), [x.filename for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', 'temp.tmp'), [x.filename for x in path.scan(recursive=True)])
 
     def test_escape(self):
         legal_path = DayuPath('/Users/andyguo/Desktop/111.mov')
