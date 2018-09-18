@@ -6,6 +6,7 @@
 * 更好的针对影视行业文件优化。可以快速得到frame count、version 等字段
 * 扫描文件自动拼合序列帧，并且可以识别丢帧
 * 更快捷的文件序列帧格式转换。支持%0?d、####、$F? 的三种形式
+* 支持用户自行对DayuPath 添加更多的方法、属性
 
 
 # 简单用法说明
@@ -64,4 +65,39 @@ for sequence_file in disk_path.scan(recursive=True):
     # SequenceFile(filename='/some/v0001/A001C001_170922_E4FB.%04d.exr'
     #               frames=[1001, 1002, 1003, 1004, 1006],
     #               missing=[1005])
+```
+
+
+# DayuPathPlugin 的插件用法
+
+如果用户需要对DayuPath 添加自定义的函数属性，除了常规的继承方法之外。还可以使用DayuPathPlugin 将自定义的方法、属性以插件的形式加入DayuPath。
+这样可以更加灵活的在代码的任意地方根据需要增加、减少功能。
+
+```python
+from dayu_path import DayuPath, DayuPathPlugin
+
+# 用户自己添加的功能函数
+def my_function(self, *args, **kwargs):
+    print args, kwargs
+
+# 增加插件函数 （实例化方法）
+DayuPathPlugin.register_func(my_function)
+DayuPath('/some/path/file').my_function(123)    # (1,2,3), {}
+
+# 也可以使用装饰器来进行注册
+@DayuPathPlugin.register_func
+def other_function(self):
+    return 'hello world'
+
+
+# 增加插件属性 （类属性）
+DayuPathPlugin.register_attribute('my_key', default_value=100)
+assert DayuPath('/some/other/file').my_key == 100
+
+# 取消插件函数、插件属性
+ret = DayuPathPlugin.unregister('my_function')
+assert ret == True
+ret = DayuPathPlugin.unregister('my_key')
+assert ret == True
+
 ```
