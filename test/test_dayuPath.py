@@ -185,7 +185,7 @@ class TestDayuPath(TestCase):
                         'missing_test/dd_0090_ani_1005.jpg',
                         'ignore_test/._DS_store',
                         'ignore_test/..sdf',
-                        'ignore_test/Thumb',
+                        'ignore_test/Thumbnail',
                         'ignore_test/temp.tmp',
                         'recursive_test/a_001.exr',
                         'recursive_test/a_002.exr',
@@ -239,6 +239,17 @@ class TestDayuPath(TestCase):
                 self.assertEqual(x.filename, path.child(u'single_media_test', u'测试中文.MP4'))
                 self.assertEqual(x.frames, [])
                 self.assertEqual(x.missing, [])
+
+            for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan():
+                self.assertIsNone(x)
+
+            for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True):
+                self.assertIsNone(x)
+
+            self.assertNotIn(path.child('ignore_test', '._DS_store'), [x.filename for x in path.scan(recursive=True)])
+            self.assertNotIn(path.child('ignore_test', '..sdf'), [x.filename for x in path.scan(recursive=True)])
+            self.assertNotIn(path.child('ignore_test', 'Thumbnail'), [x.filename for x in path.scan(recursive=True)])
+            self.assertNotIn(path.child('ignore_test', 'temp.tmp'), [x.filename for x in path.scan(recursive=True)])
 
         except Exception as e:
             raise e
