@@ -19,9 +19,34 @@ from dayu_path import DayuPath
 # 初始化
 disk_path = DayuPath('/some/v0001/A001C001_170922_E4FB.1001.exr')
 
+# 查询父级目录
+assert disk_path.parent == '/some/v0001'
+
+# 拼接子文件夹、子文件
+assert disk.path.parent.child('child', 'new_file.txt') == '/some/v0001/child/new_file.txt'
+
+# 获得文件名、文件扩展名、文件主干部分
+assert disk_path.name == 'A001C001_170922_E4FB.1001.exr'
+assert disk.path.ext == '.exr'
+assert disk_path.stem == 'A001C001_170922_E4FB.1001'
+
+# 扫描当前目录下的所有文件夹、文件
+print disk_path.parent.listdir()
+
+# 遍历当前文件夹下所有深度的文件夹、文件
+for single_file in disk_path.parent.walk():
+    print single_file
+
 # 快速获得相应的version、frame count
 assert disk_path.frame == 1001
 assert disk_path.version == 'v0001'
+
+# 快速得到文件的挂载目录（盘符、挂载点）
+assert disk_path.root == '/'
+
+# 判断文件是本地文件系统，还是网络文件系统
+assert DayuPath('/some/local/file').is_local == True
+assert DayuPath('/some/network/file').is_network == True
 
 # 文件实际名称转换为序列帧形式
 assert disk_path.to_pattern() == '/some/v0001/A001C001_170922_E4FB.%04d.exr'
