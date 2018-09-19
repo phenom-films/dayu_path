@@ -3,7 +3,7 @@
 
 __author__ = 'andyguo'
 
-from base import DayuPath
+from .base import DayuPath
 
 
 class DayuPathPlugin(object):

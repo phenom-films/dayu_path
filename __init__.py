@@ -3,4 +3,4 @@
 
 __author__ = 'andyguo'
 
-from src.base import DayuPath
+from .src.base import DayuPath
