@@ -22,6 +22,14 @@ class TestDayuPathPlugin(TestCase):
         self.assertEqual(DayuPath('/test').plug_func(1, 2, 3, key='value'),
                          ((1, 2, 3), {'key': 'value'}))
 
+        @DayuPathPlugin.register_func
+        def plug_func_deco(self, *args, **kwargs):
+            return args, kwargs
+
+        self.assertIn(plug_func.__name__, dir(DayuPath))
+        self.assertEqual(DayuPath('/test').plug_func(1, 2, 3, key='value'),
+                         ((1, 2, 3), {'key': 'value'}))
+
         self.assertFalse(DayuPathPlugin.register_func(callable_object()))
         self.assertFalse(DayuPathPlugin.register_func([]))
 
