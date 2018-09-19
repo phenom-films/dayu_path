@@ -5,8 +5,8 @@ __author__ = 'andyguo'
 
 from unipath import Path
 
-from .config import *
-from .data_structure import SequentialFiles
+from config import *
+from data_structure import SequentialFiles
 
 
 class DayuPath(Path):
