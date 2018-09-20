@@ -1,5 +1,7 @@
 # dayu_path
 
+[![Build Status](https://travis-ci.org/phenom-films/dayu_path.svg?branch=master)](https://travis-ci.org/phenom-films/dayu_path)
+
 针对影视行业的文件路径处理类。比起传统的os.path 有着下面的优点：
 
 * 基于unipath，将文件路径作为对象处理
