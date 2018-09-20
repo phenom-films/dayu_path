@@ -5,7 +5,7 @@ __author__ = 'andyguo'
 
 from unittest import TestCase
 
-from src.plugin import DayuPathPlugin, DayuPath
+from dayu_path.plugin import DayuPathPlugin, DayuPath
 
 
 class TestDayuPathPlugin(TestCase):

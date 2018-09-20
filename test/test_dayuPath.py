@@ -5,7 +5,7 @@ __author__ = 'andyguo'
 
 from unittest import TestCase
 
-from src.base import DayuPath
+from dayu_path import DayuPath
 
 
 class TestDayuPath(TestCase):
