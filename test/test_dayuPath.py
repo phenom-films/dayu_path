@@ -3,6 +3,7 @@
 
 __author__ = 'andyguo'
 
+import unittest
 from unittest import TestCase
 
 from dayu_path import DayuPath
@@ -280,15 +281,18 @@ class TestDayuPath(TestCase):
         self.assertEqual(DayuPath('/Users/andyguo/Desktop/vv/pl_0010_plt_bga.1001.mov').version, None)
         self.assertEqual(DayuPath('not a path').version, None)
 
+    @unittest.skip('only for mac local test')
     def test_root(self):
         self.assertEqual(DayuPath('/Users/andyguo/Desktop/abc.jpg').root, '/')
         self.assertEqual(DayuPath('/Volumes/filedata/td/finder.lnk').root, '/Volumes/filedata')
         self.assertIsInstance(DayuPath('/Volumes/filedata/td/finder.lnk').root, DayuPath)
 
+    @unittest.skip('only for mac local test')
     def test_is_network(self):
         self.assertTrue(DayuPath('/Volumes/filedata/td/finder.lnk').is_network)
         self.assertFalse(DayuPath('/Users/andyguo/Desktop/log.txt').is_network)
 
+    @unittest.skip('only for mac local test')
     def test_is_local(self):
         self.assertFalse(DayuPath('/Volumes/filedata/td/finder.lnk').is_local)
         self.assertTrue(DayuPath('/Users/andyguo/Desktop/log.txt').is_local)
