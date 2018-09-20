@@ -4,4 +4,4 @@
 __author__ = 'andyguo'
 __version__ = '0.1'
 
-from .src.base import DayuPath
+from .base import DayuPath
