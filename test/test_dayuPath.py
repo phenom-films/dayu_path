@@ -195,7 +195,7 @@ class TestDayuPath(TestCase):
                         'recursive_test/inside/b_102.exr',
                         ]
         for x in content_list:
-            file_path = DayuPath(self.mock_path + '/' + x)
+            file_path = DayuPath(u'{}/{}'.format(self.mock_path, x))
             file_path.parent.mkdir(parents=True)
             with open(file_path, 'w') as f:
                 f.write('1')
