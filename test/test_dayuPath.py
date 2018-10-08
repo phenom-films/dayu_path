@@ -248,14 +248,10 @@ class TestDayuPath(TestCase):
             self.assertEqual(x.frames, [])
             self.assertEqual(x.missing, [])
 
-        for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan():
-            self.assertIsNone(x.filename)
+        self.assertFalse(list(path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan()))
+        self.assertFalse(list(path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True)))
+        self.assertFalse(list(path.child('empty_folder').scan(recursive=True)))
 
-        for x in path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True):
-            self.assertIsNone(x.filename)
-
-        for x in path.child('empty_folder').scan(recursive=True):
-            self.assertIsNone(x.filename)
 
         self.assertNotIn(path.child('ignore_test', '._DS_store'), [x.filename for x in path.scan(recursive=True)])
         self.assertNotIn(path.child('ignore_test', '..sdf'), [x.filename for x in path.scan(recursive=True)])
