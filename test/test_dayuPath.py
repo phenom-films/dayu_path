@@ -178,6 +178,7 @@ class TestDayuPath(TestCase):
                         'vfx_test/pl_0010_plt_v0001.1001.exr',
                         'vfx_test/pl_0010_plt_v0001.1002.exr',
                         'vfx_test/pl_0010_plt_v0001.1003.exr',
+                        'not_a_sequence/abc.exr'
                         'single_media_test/pl_0010_plt_v0001.1003.mov',
                         'single_media_test/MVI1022.MP4',
                         u'single_media_test/测试中文.MP4',
@@ -217,8 +218,8 @@ class TestDayuPath(TestCase):
         ground_truth_result = {path.child('first_depth_0010.%04d.dpx')                      : [[1001, 1002], []],
                                path.child('cam_test', 'A001C001_180212_RG8C.%07d.exr')      : [
                                    [9876521, 9876522, 9876523], []],
-                               path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr')         : [[1001, 1002, 1003],
-                                                                                               []],
+                               path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr')         : [[1001, 1002, 1003], []],
+                               path.child('not_a_sequence', 'abc.exr')                      : [[], []],
                                path.child('single_media_test', 'pl_0010_plt_v0001.1003.mov'): [[], []],
                                path.child('single_media_test', 'MVI1022.MP4')               : [[], []],
                                path.child(u'single_media_test', u'测试中文.MP4')                : [[], []],
@@ -248,10 +249,14 @@ class TestDayuPath(TestCase):
             self.assertEqual(x.frames, [])
             self.assertEqual(x.missing, [])
 
+        for x in path.child('not_a_sequence', 'abc.exr').scan():
+            self.assertEqual(x.filename, path.child('not_a_sequence', 'abc.exr'))
+            self.assertEqual(x.frames, [])
+            self.assertEqual(x.missing, [])
+
         self.assertFalse(list(path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan()))
         self.assertFalse(list(path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True)))
         self.assertFalse(list(path.child('empty_folder').scan(recursive=True)))
-
 
         self.assertNotIn(path.child('ignore_test', '._DS_store'), [x.filename for x in path.scan(recursive=True)])
         self.assertNotIn(path.child('ignore_test', '..sdf'), [x.filename for x in path.scan(recursive=True)])
