@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='dayu_path',
-        version='0.3',
+        version='0.3.1',
         packages=['test', 'dayu_path'],
         url='https://github.com/phenom-films/dayu_path',
         license='MIT',
