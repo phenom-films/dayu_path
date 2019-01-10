@@ -170,6 +170,7 @@ class TestDayuPath(TestCase):
 
         from uuid import uuid4
         self.mock_path = DayuPath('~').expand_user().child(uuid4().hex)
+        self.mock_path2 = DayuPath('~').expand_user().child(uuid4().hex)
         content_list = ['first_depth_0010.1001.dpx',
                         'first_depth_0010.1002.dpx',
                         'cam_test/A001C001_180212_RG8C.9876521.exr',
@@ -194,8 +195,17 @@ class TestDayuPath(TestCase):
                         'recursive_test/inside/b_101.exr',
                         'recursive_test/inside/b_102.exr',
                         ]
+        content_list2 = ['recursive_test/inside/b_100.exr',
+                        'recursive_test/inside/b_101.exr',
+                        'recursive_test/inside/b_102.exr',]
         for x in content_list:
             file_path = DayuPath(self.mock_path + '/' + x)
+            file_path.parent.mkdir(parents=True)
+            with open(file_path, 'w') as f:
+                f.write('1')
+
+        for x in content_list2:
+            file_path = DayuPath(self.mock_path2 + '/' + x)
             file_path.parent.mkdir(parents=True)
             with open(file_path, 'w') as f:
                 f.write('1')
@@ -227,11 +237,18 @@ class TestDayuPath(TestCase):
                                path.child('recursive_test', 'a_%03d.exr')                   : [[1, 2], []],
                                path.child('recursive_test', 'inside', 'b_%03d.exr')         : [[100, 101, 102], []],
                                }
+        ground_truth_result.update({
+            self.mock_path2.child('recursive_test', 'inside', 'b_%03d.exr'): [[100, 101, 102], []]
+        })
 
         for x in path.scan(recursive=True):
             if x.filename:
                 self.assertTrue(x.filename in ground_truth_result.keys())
                 self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
+
+        for x in self.mock_path2.scan(recursive=True):
+            self.assertTrue(x.filename in ground_truth_result.keys())
+            self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
 
         for x in path.child('vfx_test', 'pl_0010_plt_v0001.1001.exr').scan():
             self.assertEqual(x.filename, path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr'))
