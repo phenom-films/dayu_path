@@ -272,6 +272,8 @@ class DayuPath(Path):
                 if seq_list:
                     for k, v in seq_list.items():
                         yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                elif sub_folder:
+                    continue
                 else:
                     yield SequentialFiles(None, [], [])
                     raise StopIteration
