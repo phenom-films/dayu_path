@@ -250,7 +250,7 @@ class DayuPath(Path):
         run_filter = filter_callback(filter)
 
         if recursive:
-            for root, sub_folder, sub_files in os.walk(self):
+            for root, sub_folder, sub_files in os.walk(scan_path):
                 seq_list = {}
                 for single_file in sub_files:
                     full_path = DayuPath(root).child(single_file)
@@ -263,10 +263,8 @@ class DayuPath(Path):
                 if file_flag:
                     k = self.absolute().to_pattern()
                     v = seq_list.get(k, None)
-                    if v:
+                    if v is not None:
                         yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
-                    else:
-                        yield SequentialFiles(None, [], [])
                     raise StopIteration
 
                 if seq_list:
@@ -275,7 +273,6 @@ class DayuPath(Path):
                 elif sub_folder:
                     continue
                 else:
-                    yield SequentialFiles(None, [], [])
                     raise StopIteration
 
         else:
@@ -289,17 +286,14 @@ class DayuPath(Path):
             if file_flag:
                 k = self.absolute().to_pattern()
                 v = seq_list.get(k, None)
-                if v:
+                if v is not None:
                     yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
-                else:
-                    yield SequentialFiles(None, [], [])
                 raise StopIteration
 
             if seq_list:
                 for k, v in seq_list.items():
                     yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
             else:
-                yield SequentialFiles(None, [], [])
                 raise StopIteration
 
     def _show_in_win32(self, show_file=False):
@@ -331,3 +325,9 @@ class DayuPath(Path):
         sub_func = getattr(self, '_show_in_{}'.format(sys.platform), None)
         if sub_func:
             sub_func(show_file=show_file)
+
+
+if __name__ == '__main__':
+    aa = DayuPath('/Users/andyguo/Desktop/camera_format_tets.nk')
+    for x in aa.scan(recursive=True):
+        print x
