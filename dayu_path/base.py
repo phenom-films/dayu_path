@@ -4,13 +4,10 @@
 __author__ = 'andyguo'
 
 import os
-import stat
 import shutil
-import re
-from config import *
-from data_structure import SequentialFiles
+import stat
 
-from unipath import Path
+from config import *
 
 BASE_STRING_TYPE = str  # Python 3 str (=unicode), or Python 2 bytes.
 if os.path.supports_unicode_filenames:
@@ -45,7 +42,7 @@ class DayuPath(BASE_STRING_TYPE):
                 normalize_path = re.sub(r'^//', r'\\\\', normalize_path)
                 match = WIN32_DRIVE_REGEX.match(normalize_path)
                 if match:
-                    normalize_path = normalize_path.replace(match.group(1), match.group(1).lower())
+                    normalize_path = normalize_path.replace(match.group(1), match.group(1).lower()).rstrip('/')
                 return super(DayuPath, cls).__new__(cls, normalize_path)
 
         return None
@@ -240,6 +237,16 @@ class DayuPath(BASE_STRING_TYPE):
         return -1
 
     @property
+    def udim(self):
+        frame = self.frame
+        if not frame:
+            return None
+        if 1000 <= frame <= 1099:
+            return frame
+        else:
+            return None
+
+    @property
     def version(self):
         match = VERSION_REGEX.match(self)
         if match:
@@ -373,6 +380,56 @@ class DayuPath(BASE_STRING_TYPE):
         else:
             return self
 
+    def rename_sequence(self, dst_path, start=None, step=1, parents=False, keep_missing=False):
+        if (not self.pattern) and (not dst_path.pattern):
+            self.rename(dst_path, parents=parents)
+            return
+
+        if self.pattern and self.frames and dst_path.pattern:
+            start = start if start else self.frames[0]
+            prev_frame = self.frames[0]
+            for i in self.frames:
+                if keep_missing:
+                    start += (i - prev_frame)
+                    self.restore_pattern(i).rename(dst_path.restore_pattern(start), parents=parents)
+                    prev_frame = i
+                else:
+                    self.restore_pattern(i).rename(dst_path.restore_pattern(start), parents=parents)
+                    start += step
+            return
+
+        from errors import DayuPathBaseError
+        raise DayuPathBaseError('maybe one of following errors: \n'
+                                '* source path without frames \n'
+                                '* source path is a pattern, but dst path is not a pattern\n')
+
+    def copy_sequence(self, dst_path, start=None, step=1,
+                      times=False, permission=False, parents=False, keep_missing=False):
+        if (not self.pattern) and (not dst_path.pattern):
+            if parents:
+                dst_path.parent.mkdir(parents=True)
+            self.copy(dst_path, times=times, permission=permission)
+            return
+
+        if self.pattern and self.frames and dst_path.pattern:
+            if parents:
+                dst_path.parent.mkdir(parents=True)
+            start = start if start else self.frames[0]
+            prev_frame = self.frames[0]
+            for i in self.frames:
+                if keep_missing:
+                    start += (i - prev_frame)
+                    self.restore_pattern(i).copy(dst_path.restore_pattern(start),
+                                                 times=times,
+                                                 permission=permission)
+                    prev_frame = i
+                else:
+                    self.restore_pattern(i).copy(dst_path.restore_pattern(start),
+                                                 times=times,
+                                                 permission=permission)
+                    start += step
+            return
+
     def scan(self, recursive=False, regex_pattern=None, ext_filters=None, function_filter=None, ignore_invisible=True):
         from config import EXT_SINGLE_MEDIA, SCAN_IGNORE
         if self.isfile() and self.lower().endswith(tuple(EXT_SINGLE_MEDIA.keys())):
@@ -457,7 +514,10 @@ if __name__ == '__main__':
     aa = DayuPath.cwd()
     bb = DayuPath('/Users/andyguo/Desktop/test', frames=[1],
                   missing=[2])
-    cc = DayuPath('/Users/andyguo/Desktop/test/a.1001.jpg', frames=[1], missing=[2])
+    cc = DayuPath('/Users/andyguo/Desktop/123/rrr.%04d.jpg')
     # print cc.to_pattern()
-    for x in bb.scan():
-        print x, x.frames, x.missing
+    cc = list(cc.scan())[0]
+    print cc, cc.frames, cc.missing
+
+    dst = DayuPath('/Users/andyguo/Desktop/123/untitled folder/asdf.%04d.jpg')
+    cc.copy_sequence(dst, start=2000, keep_missing=True)
