@@ -11,6 +11,8 @@ FRAME_REGEX = re.compile(r'.*?(?<![\dvV])(\d{2,})$')
 PATTERN_REGEX = re.compile(r'.*(\%(\d*)d).*|.*?(#+)|.*(\$F(\d*))')
 # 用于小写化 windows 盘符的正则表达式
 WIN32_DRIVE_REGEX = re.compile(r'^(\w:).*')
+# NUC regex
+UNC_REGEX = re.compile(r'^(\\\\.*?)/+.*')
 
 VERSION_REGEX = re.compile(r'.*([vV]\d+).*')
 

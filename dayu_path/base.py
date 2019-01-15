@@ -3,54 +3,224 @@
 
 __author__ = 'andyguo'
 
-from unipath import Path
+import os
+import shutil
+import stat
 
 from config import *
-from data_structure import SequentialFiles
+
+BASE_STRING_TYPE = str  # Python 3 str (=unicode), or Python 2 bytes.
+if os.path.supports_unicode_filenames:
+    try:
+        BASE_STRING_TYPE = unicode  # Python 2 unicode.
+    except NameError:
+        pass
 
 
-class DayuPath(Path):
+class DayuPath(BASE_STRING_TYPE):
+    pathlib = os.path
 
-    def __new__(cls, *args, **kw):
-        '''
-        重载 __new__ , 为了保证不论win32、darwin、linux2 三个操作系统的路径都是使用 '/' 进行层级切割
-        :param args: 理论上只有args[0]，类型是string
-        :param kw:
-        :return:
-        '''
-        if args:
-            if not args[0]:
-                return None
+    exists = pathlib.exists
+    lexists = pathlib.lexists
+    isfile = pathlib.isfile
+    isdir = pathlib.isdir
+    islink = pathlib.islink
+    ismount = pathlib.ismount
 
-            if isinstance(args[0], DayuPath):
-                return args[0]
+    atime = pathlib.getatime
+    ctime = pathlib.getctime
+    mtime = pathlib.getmtime
+    size = pathlib.getsize
 
-            if isinstance(args[0], basestring):
-                normalize_path = args[0].replace('\\', '/').replace('//', '/')
+    def __new__(cls, path, frames=None, missing=None):
+        if path:
+            if isinstance(path, DayuPath):
+                return path
+
+            if isinstance(path, basestring):
+                normalize_path = re.sub(r'\\', '/', path)
+                normalize_path = re.sub(r'^//', r'\\\\', normalize_path)
                 match = WIN32_DRIVE_REGEX.match(normalize_path)
                 if match:
-                    normalize_path = normalize_path.replace(match.group(1), match.group(1).lower())
-                new_args = (normalize_path,)
-                return super(DayuPath, cls).__new__(cls, *new_args, **kw)
+                    normalize_path = normalize_path.replace(match.group(1), match.group(1).lower()).rstrip('/')
+                return super(DayuPath, cls).__new__(cls, normalize_path)
 
-            return None
+        return None
+
+    def __init__(self, path, frames=None, missing=None):
+        super(DayuPath, self).__init__()
+        self.frames = frames if frames else []
+        self.missing = missing if missing else []
+
+    def norm(self):
+        return DayuPath(self.pathlib.normpath(self))
+
+    def expand_user(self):
+        return DayuPath(self.pathlib.expanduser(self))
+
+    def expand_var(self):
+        return DayuPath(self.pathlib.expandvars(self))
+
+    def expand(self):
+        new_path = self.pathlib.expanduser(self)
+        new_path = self.pathlib.expandvars(new_path)
+        new_path = self.pathlib.normpath(new_path)
+        return DayuPath(new_path)
+
+    @property
+    def parent(self):
+        return DayuPath(self.pathlib.dirname(self))
+
+    @property
+    def name(self):
+        return DayuPath(self.pathlib.basename(self))
+
+    @property
+    def stem(self):
+        return DayuPath(self.pathlib.splitext(self.name)[0])
+
+    @property
+    def ext(self):
+        return DayuPath(self.pathlib.splitext(self)[1])
+
+    @property
+    def root(self):
+        match = WIN32_DRIVE_REGEX.match(self)
+        if match:
+            return DayuPath(match.group(1))
+        match = UNC_REGEX.match(self)
+        if match:
+            return DayuPath(match.group(1))
+        if self.startswith('/'):
+            return DayuPath('/')
         return None
 
     @property
-    def is_network(self):
-        try:
-            import psutil
-        except ImportError as e:
-            raise
+    def components(self):
+        result = [self.root]
+        rest_parts = self[len(self.root):].split('/')
+        non_empty_parts = [c for c in rest_parts if c]
+        result.extend(non_empty_parts)
+        return result
 
-        disk_partition = next((d for d in psutil.disk_partitions(True) if DayuPath(d.mountpoint) == self.root), None)
-        if disk_partition:
-            return True if disk_partition.fstype in NETWORK_FILE_SYSTEM else False
-        return False
+    def ancestor(self, n):
+        current = self
+        for i in range(n):
+            current = current.parent
+        return current
 
-    @property
-    def is_local(self):
-        return not self.is_network
+    def child(self, *children):
+        for child in children:
+            if self.pathlib.sep in child or \
+                    '/' in child or \
+                    (self.pathlib.altsep and self.pathlib.altsep in child) or \
+                    self.pathlib.pardir == child or \
+                    self.pathlib.curdir == child:
+                raise ValueError('unsafe string in {}'.format(child))
+
+        new_path = self.pathlib.join(self, *children)
+        return DayuPath(new_path)
+
+    @classmethod
+    def cwd(cls):
+        return cls(os.getcwd())
+
+    def absolute(self):
+        return DayuPath(self.pathlib.abspath(self))
+
+    def resolve(self):
+        return DayuPath(self.pathlib.realpath(self))
+
+    def listdir(self, regex_pattern=None, ext_filters=None, only_name=False):
+        result = os.listdir(self)
+        if regex_pattern:
+            compiled_regex = re.compile(regex_pattern)
+            result = (f for f in result if compiled_regex.match(f))
+        if ext_filters:
+            result = (f for f in result if f.ext.lower() in ext_filters)
+        if not only_name:
+            result = (self.child(f) for f in result)
+
+        return sorted(result)
+
+    def walk(self, topdown=True, onerror=None, followlinks=False):
+        for root, sub_folders, sub_files in os.walk(self, topdown=topdown, onerror=onerror, followlinks=followlinks):
+            yield root, sub_folders, sub_files
+
+    def state(self):
+        return os.stat(self)
+
+    def lstate(self):
+        return os.lstat(self)
+
+    def chmod(self, mode):
+        os.chmod(mode)
+
+    if hasattr(os, 'chown'):
+        def chown(self, uid, gid):
+            os.chown(self, uid, gid)
+
+    def mkdir(self, parents=False, mode=0o777):
+        if self.exists():
+            return
+        if parents is True:
+            os.makedirs(self, mode)
+        else:
+            os.mkdir(self, mode)
+
+    def rmdir(self, parents=False):
+        if not self.exists():
+            return
+        if parents is True:
+            os.removedirs(self)
+        else:
+            os.rmdir(self)
+
+    def remove(self):
+        if self.lexists():
+            os.remove(self)
+
+    def rename(self, new_name, parents=False):
+        if parents is True:
+            os.renames(self, new_name)
+        else:
+            os.rename(self, new_name)
+
+    if hasattr(os, 'link'):
+        def hardlink(self, newpath):
+            os.link(self, newpath)
+
+    if hasattr(os, 'symlink'):
+        def write_link(self, link_content):
+            os.symlink(link_content, self)
+
+    def copy(self, dst, times=False, permission=False):
+        shutil.copyfile(self, dst)
+        if times or permission:
+            self.copy_stat(dst, times, permission)
+
+    def copy_stat(self, dst, times=True, permission=True):
+        st = os.stat(self)
+        if hasattr(os, 'utime'):
+            os.utime(dst, (st.st_atime, st.st_mtime))
+        if hasattr(os, 'chmod'):
+            m = stat.S_IMODE(st.st_mode)
+            os.chmod(dst, m)
+
+    def rmtree(self, parents=False):
+        if self.isfile() or self.islink():
+            os.remove(self)
+        elif self.isdir():
+            shutil.rmtree(self)
+        if not parents:
+            return
+        p = self.parent
+        while p:
+            try:
+                os.rmdir(p)
+            except os.error:
+                break
+            p = p.parent
 
     @property
     def frame(self):
@@ -67,14 +237,14 @@ class DayuPath(Path):
         return -1
 
     @property
-    def root(self):
-        import os
-        is_mount = os.path.ismount
-        temp_path = self
-        while not is_mount(temp_path.parent):
-            temp_path = temp_path.parent
-
-        return temp_path.parent
+    def udim(self):
+        frame = self.frame
+        if not frame:
+            return None
+        if 1000 <= frame <= 1099:
+            return frame
+        else:
+            return None
 
     @property
     def version(self):
@@ -105,66 +275,75 @@ class DayuPath(Path):
         pattern_match = PATTERN_REGEX.match(self.stem)
         if pattern_match:
             if pattern_match.group(1):
-                if pattern == '%':
-                    return self
-                if pattern == '#':
-                    return DayuPath(self.replace(pattern_match.group(1),
-                                                 '#' * int(pattern_match.group(2) if pattern_match.group(2) else 1)))
-                if pattern == '$':
-                    return DayuPath(self.replace(pattern_match.group(1),
-                                                 '$F{}'.format(
-                                                         int(pattern_match.group(2) if pattern_match.group(2) else 1))))
-                else:
-                    return self
-
+                return self.__convert_percentage_pattern(pattern, pattern_match)
             if pattern_match.group(3):
-                if pattern == '%':
-                    return DayuPath(self.replace(pattern_match.group(3),
-                                                 '%0{}d'.format(len(pattern_match.group(3)))))
-                if pattern == '#':
-                    return self
-                if pattern == '$':
-                    return DayuPath(self.replace(pattern_match.group(3),
-                                                 '$F{}'.format(len(pattern_match.group(3)))))
-                else:
-                    return DayuPath(self.replace(pattern_match.group(3),
-                                                 '%0{}d'.format(len(pattern_match.group(3)))))
+                return self.__convert_sharp_pattern(pattern, pattern_match)
             if pattern_match.group(4):
-                if pattern == '%':
-                    return DayuPath(self.replace(pattern_match.group(4),
-                                                 '%0{}d'.format(
-                                                         pattern_match.group(5) if pattern_match.group(5) else 1)))
-                if pattern == '#':
-                    return DayuPath(self.replace(pattern_match.group(4),
-                                                 '#' * int(pattern_match.group(5) if pattern_match.group(5) else 1)))
-                if pattern == '$':
-                    return self
-                else:
-                    return DayuPath(self.replace(pattern_match.group(4),
-                                                 '%0{}d'.format(
-                                                         pattern_match.group(5) if pattern_match.group(5) else 1)))
-
+                return self.__convert_dollar_pattern(pattern, pattern_match)
             return self
 
         else:
             match = FRAME_REGEX.match(self.stem)
             if match:
-                if pattern == '%':
-                    replace_string = '%0{}d'.format(len(match.group(1)))
-                elif pattern == '#':
-                    replace_string = '#' * len(match.group(1))
-                elif pattern == '$':
-                    replace_string = '$F{}'.format(len(match.group(1)))
-                else:
-                    replace_string = '%0{}d'.format(len(match.group(1)))
-
-                new_name = self.name[:match.start(1)] + \
-                           replace_string + \
-                           self.name[match.end(1):]
-                return DayuPath(self.parent + '/' + new_name)
-
+                return self.__convert_normal_frame_pattern(match, pattern)
             else:
                 return self
+
+    def __convert_normal_frame_pattern(self, match, pattern):
+        if pattern == '%':
+            replace_string = '%0{}d'.format(len(match.group(1)))
+        elif pattern == '#':
+            replace_string = '#' * len(match.group(1))
+        elif pattern == '$':
+            replace_string = '$F{}'.format(len(match.group(1)))
+        else:
+            replace_string = '%0{}d'.format(len(match.group(1)))
+
+        new_name = self.name[:match.start(1)] + \
+                   replace_string + \
+                   self.name[match.end(1):]
+        return DayuPath(self.parent + '/' + new_name)
+
+    def __convert_dollar_pattern(self, pattern, pattern_match):
+        if pattern == '%':
+            return DayuPath(self.replace(pattern_match.group(4),
+                                         '%0{}d'.format(
+                                                 pattern_match.group(5) if pattern_match.group(5) else 1)))
+        if pattern == '#':
+            return DayuPath(self.replace(pattern_match.group(4),
+                                         '#' * int(pattern_match.group(5) if pattern_match.group(5) else 1)))
+        if pattern == '$':
+            return self
+        else:
+            return DayuPath(self.replace(pattern_match.group(4),
+                                         '%0{}d'.format(
+                                                 pattern_match.group(5) if pattern_match.group(5) else 1)))
+
+    def __convert_sharp_pattern(self, pattern, pattern_match):
+        if pattern == '%':
+            return DayuPath(self.replace(pattern_match.group(3),
+                                         '%0{}d'.format(len(pattern_match.group(3)))))
+        if pattern == '#':
+            return self
+        if pattern == '$':
+            return DayuPath(self.replace(pattern_match.group(3),
+                                         '$F{}'.format(len(pattern_match.group(3)))))
+        else:
+            return DayuPath(self.replace(pattern_match.group(3),
+                                         '%0{}d'.format(len(pattern_match.group(3)))))
+
+    def __convert_percentage_pattern(self, pattern, pattern_match):
+        if pattern == '%':
+            return self
+        if pattern == '#':
+            return DayuPath(self.replace(pattern_match.group(1),
+                                         '#' * int(pattern_match.group(2) if pattern_match.group(2) else 1)))
+        if pattern == '$':
+            return DayuPath(self.replace(pattern_match.group(1),
+                                         '$F{}'.format(
+                                                 int(pattern_match.group(2) if pattern_match.group(2) else 1))))
+        else:
+            return self
 
     def escape(self):
         import re
@@ -201,99 +380,103 @@ class DayuPath(Path):
         else:
             return self
 
-    def scan(self, recursive=False, filter=None):
-        '''
-        扫描硬盘路径，可以是递归或者非递归。
-        返回的文件总是会被加入 SequentialFiles() 这个数据结构中。
-        如果.frames 为[]，表示是独立的文件，而不是序列文件。
-        如果用户希望是常规意义的遍历文件，请使用 DayuPath.walk() 方法。
+    def rename_sequence(self, dst_path, start=None, step=1, parents=False, keep_missing=False):
+        if (not self.pattern) and (not dst_path.pattern):
+            self.rename(dst_path, parents=parents)
+            return
 
-        :param recursive: True，表示递归搜索；False 表示只搜索当前文件
-        :return: list of SequentialFiles 对象
-        '''
+        if self.pattern and self.frames and dst_path.pattern:
+            start = start if start else self.frames[0]
+            prev_frame = self.frames[0]
+            for i in self.frames:
+                if keep_missing:
+                    start += (i - prev_frame)
+                    self.restore_pattern(i).rename(dst_path.restore_pattern(start), parents=parents)
+                    prev_frame = i
+                else:
+                    self.restore_pattern(i).rename(dst_path.restore_pattern(start), parents=parents)
+                    start += step
+            return
 
-        from config import EXT_SINGLE_MEDIA
-        if self.lower().endswith(tuple(EXT_SINGLE_MEDIA.keys())):
-            yield SequentialFiles(self, [], [])
+        from errors import DayuPathBaseError
+        raise DayuPathBaseError('maybe one of following errors: \n'
+                                '* source path without frames \n'
+                                '* source path is a pattern, but dst path is not a pattern\n')
+
+    def copy_sequence(self, dst_path, start=None, step=1,
+                      times=False, permission=False, parents=False, keep_missing=False):
+        if (not self.pattern) and (not dst_path.pattern):
+            if parents:
+                dst_path.parent.mkdir(parents=True)
+            self.copy(dst_path, times=times, permission=permission)
+            return
+
+        if self.pattern and self.frames and dst_path.pattern:
+            if parents:
+                dst_path.parent.mkdir(parents=True)
+            start = start if start else self.frames[0]
+            prev_frame = self.frames[0]
+            for i in self.frames:
+                if keep_missing:
+                    start += (i - prev_frame)
+                    self.restore_pattern(i).copy(dst_path.restore_pattern(start),
+                                                 times=times,
+                                                 permission=permission)
+                    prev_frame = i
+                else:
+                    self.restore_pattern(i).copy(dst_path.restore_pattern(start),
+                                                 times=times,
+                                                 permission=permission)
+                    start += step
+            return
+
+    def scan(self, recursive=False, regex_pattern=None, ext_filters=None, function_filter=None, ignore_invisible=True):
+        from config import EXT_SINGLE_MEDIA, SCAN_IGNORE
+        if self.isfile() and self.lower().endswith(tuple(EXT_SINGLE_MEDIA.keys())):
+            yield self
             raise StopIteration
 
-        import os
         import bisect
-        from collections import Iterable
-
-        def filter_callback(filter):
-            is_file = os.path.isfile
-
-            if filter is None:
-                ignore_start = SCAN_IGNORE['start']
-                ignore_end = SCAN_IGNORE['end']
-                return lambda p: is_file(p) and \
-                                 not (p.name.startswith(ignore_start)) and \
-                                 not (p.name.endswith(ignore_end))
-
-            if callable(filter):
-                return filter
-            if isinstance(filter, basestring):
-                return lambda p: is_file(p) and p.lower().endswith(filter)
-            if isinstance(filter, dict):
-                ignore_start = filter.get('start', SCAN_IGNORE['start'])
-                ignore_end = filter.get('end', SCAN_IGNORE['end'])
-                return lambda p: is_file(p) and \
-                                 not (p.name.startswith(ignore_start)) and \
-                                 not (p.name.endswith(ignore_end))
-
-            if isinstance(filter, Iterable):
-                return lambda p: is_file(p) and p.lower().endswith(tuple(filter))
-            return is_file
 
         scan_path, file_flag = (self, False) if self.isdir() else (self.parent, True)
-        run_filter = filter_callback(filter)
-
-        if recursive:
-            for root, sub_folder, sub_files in os.walk(scan_path):
-                seq_list = {}
-                for single_file in sub_files:
-                    full_path = DayuPath(root).child(single_file)
-                    if run_filter(full_path):
-                        filename_pattern = full_path.absolute().to_pattern()
-                        frames_list = seq_list.setdefault(filename_pattern, [])
-                        if filename_pattern != full_path:
-                            bisect.insort(frames_list, full_path.frame)
-
-                if file_flag:
-                    k = self.absolute().to_pattern()
-                    v = seq_list.get(k, None)
-                    if v is not None:
-                        yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
-                    raise StopIteration
-
-                if seq_list:
-                    for k, v in seq_list.items():
-                        yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
-                elif sub_folder:
-                    continue
-                else:
-                    raise StopIteration
-
-        else:
+        compiled_regex = re.compile(regex_pattern) if regex_pattern else None
+        for root, sub_folders, sub_files in os.walk(scan_path):
             seq_list = {}
-            for x in scan_path.listdir(filter=run_filter):
-                filename_pattern = x.absolute().to_pattern()
-                frames_list = seq_list.setdefault(filename_pattern, [])
-                if filename_pattern != x:
-                    bisect.insort(frames_list, x.frame)
+            if ignore_invisible:
+                all_files = (DayuPath(root).child(f) for f in sub_files if not f.startswith(SCAN_IGNORE['start']))
+            else:
+                all_files = (DayuPath(root).child(f) for f in sub_files)
+
+            avaliable_files = all_files
+            if regex_pattern:
+                avaliable_files = (f for f in all_files if (compiled_regex.match(f)))
+            if ext_filters:
+                avaliable_files = (f for f in all_files if f.lower().endswith(ext_filters))
+            if function_filter:
+                avaliable_files = (f for f in all_files if function_filter(f))
+
+            for single_file in avaliable_files:
+                pattern_path = single_file.absolute().to_pattern()
+                frames_list = seq_list.setdefault(pattern_path, [])
+                if single_file != pattern_path:
+                    bisect.insort(frames_list, single_file.frame)
 
             if file_flag:
                 k = self.absolute().to_pattern()
                 v = seq_list.get(k, None)
-                if v is not None:
-                    yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
+                if v:
+                    k.frames = v
+                    k.missing = (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else []
+                    yield k
                 raise StopIteration
 
             if seq_list:
                 for k, v in seq_list.items():
-                    yield SequentialFiles(k, v, (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else [])
-            else:
+                    k.frames = v
+                    k.missing = (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else []
+                    yield k
+
+            if not recursive:
                 raise StopIteration
 
     def _show_in_win32(self, show_file=False):
@@ -328,6 +511,13 @@ class DayuPath(Path):
 
 
 if __name__ == '__main__':
-    aa = DayuPath('/Users/andyguo/Desktop/camera_format_tets.nk')
-    for x in aa.scan(recursive=True):
-        print x
+    aa = DayuPath.cwd()
+    bb = DayuPath('/Users/andyguo/Desktop/test', frames=[1],
+                  missing=[2])
+    cc = DayuPath('/Users/andyguo/Desktop/123/rrr.%04d.jpg')
+    # print cc.to_pattern()
+    cc = list(cc.scan())[0]
+    print cc, cc.frames, cc.missing
+
+    dst = DayuPath('/Users/andyguo/Desktop/123/untitled folder/asdf.%04d.jpg')
+    cc.copy_sequence(dst, start=2000, keep_missing=True)
