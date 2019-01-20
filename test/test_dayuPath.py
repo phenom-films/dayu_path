@@ -11,7 +11,6 @@ from dayu_path import DayuPath
 
 class TestDayuPath(TestCase):
     def test___new__(self):
-        self.assertEqual(DayuPath(), None)
         self.assertEqual(DayuPath(''), None)
         self.assertEqual(DayuPath([]), None)
         self.assertEqual(DayuPath(tuple()), None)
@@ -25,6 +24,21 @@ class TestDayuPath(TestCase):
         self.assertEqual(DayuPath('D:\\data\\test.jpg'), 'd:/data/test.jpg')
         obj = DayuPath('/Users/andyguo/Desktop/111111111.jpg')
         self.assertIs(DayuPath(obj), obj)
+
+    def test_os_functions(self):
+        path = DayuPath(self.mock_path).child('cam_test', 'A001C001_180212_RG8C.9876521.exr')
+        self.assertIsNotNone(path.state())
+        self.assertIsNotNone(path.lstate())
+        self.assertIsNotNone(path.exists())
+        self.assertIsNotNone(path.lexists())
+        self.assertIsNotNone(path.isfile())
+        self.assertIsNotNone(path.isdir())
+        self.assertIsNotNone(path.islink())
+        self.assertIsNotNone(path.ismount())
+        self.assertIsNotNone(path.atime())
+        self.assertIsNotNone(path.ctime())
+        self.assertIsNotNone(path.mtime())
+        self.assertIsNotNone(path.size())
 
     def test_frame(self):
         self.assertEqual(DayuPath('/Users/andyguo/Desktop/1.jpg').frame, -1)
@@ -179,7 +193,7 @@ class TestDayuPath(TestCase):
                         'vfx_test/pl_0010_plt_v0001.1001.exr',
                         'vfx_test/pl_0010_plt_v0001.1002.exr',
                         'vfx_test/pl_0010_plt_v0001.1003.exr',
-                        'not_a_sequence/abc.exr'
+                        'not_a_sequence/abc.exr',
                         'single_media_test/pl_0010_plt_v0001.1003.mov',
                         'single_media_test/MVI1022.MP4',
                         u'single_media_test/测试中文.MP4',
@@ -188,25 +202,14 @@ class TestDayuPath(TestCase):
                         'missing_test/dd_0090_ani_1005.jpg',
                         'ignore_test/._DS_store',
                         'ignore_test/..sdf',
-                        'ignore_test/Thumbnail',
-                        'ignore_test/temp.tmp',
                         'recursive_test/a_001.exr',
                         'recursive_test/a_002.exr',
                         'recursive_test/inside/b_100.exr',
                         'recursive_test/inside/b_101.exr',
                         'recursive_test/inside/b_102.exr',
                         ]
-        content_list2 = ['recursive_test/inside/b_100.exr',
-                        'recursive_test/inside/b_101.exr',
-                        'recursive_test/inside/b_102.exr',]
         for x in content_list:
             file_path = DayuPath(u'{}/{}'.format(self.mock_path, x))
-            file_path.parent.mkdir(parents=True)
-            with open(file_path, 'w') as f:
-                f.write('1')
-
-        for x in content_list2:
-            file_path = DayuPath(self.mock_path2 + '/' + x)
             file_path.parent.mkdir(parents=True)
             with open(file_path, 'w') as f:
                 f.write('1')
@@ -221,7 +224,7 @@ class TestDayuPath(TestCase):
         path = self.mock_path
 
         result = list(path.scan())
-        self.assertEqual(result[0].filename, path.child('first_depth_0010.%04d.dpx'))
+        self.assertEqual(result[0], path.child('first_depth_0010.%04d.dpx'))
         self.assertEqual(result[0].frames, [1001, 1002])
         self.assertEqual(result[0].missing, [])
 
@@ -242,32 +245,34 @@ class TestDayuPath(TestCase):
             self.mock_path2.child('recursive_test', 'inside', 'b_%03d.exr'): [[100, 101, 102], []]
         })
 
+        print ground_truth_result.keys()
         for x in path.scan(recursive=True):
-            if x.filename:
-                self.assertTrue(x.filename in ground_truth_result.keys())
-                self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
+            if x:
+                print x
+                self.assertTrue(x in ground_truth_result.keys())
+                self.assertListEqual([x.frames, x.missing], ground_truth_result[x])
 
         for x in self.mock_path2.scan(recursive=True):
-            self.assertTrue(x.filename in ground_truth_result.keys())
-            self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
+            self.assertTrue(x in ground_truth_result.keys())
+            self.assertListEqual([x.frames, x.missing], ground_truth_result[x])
 
         for x in path.child('vfx_test', 'pl_0010_plt_v0001.1001.exr').scan():
-            self.assertEqual(x.filename, path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr'))
+            self.assertEqual(x, path.child('vfx_test', 'pl_0010_plt_v0001.%04d.exr'))
             self.assertEqual(x.frames, [1001, 1002, 1003])
             self.assertEqual(x.missing, [])
 
         for x in path.child('missing_test').scan():
-            if x.filename:
-                self.assertEqual(x.filename, path.child('missing_test', 'dd_0090_ani_%04d.jpg'))
-                self.assertListEqual([x.frames, x.missing], ground_truth_result[x.filename])
+            if x:
+                self.assertEqual(x, path.child('missing_test', 'dd_0090_ani_%04d.jpg'))
+                self.assertListEqual([x.frames, x.missing], ground_truth_result[x])
 
         for x in path.child(u'single_media_test', u'测试中文.MP4').scan():
-            self.assertEqual(x.filename, path.child(u'single_media_test', u'测试中文.MP4'))
+            self.assertEqual(x, path.child(u'single_media_test', u'测试中文.MP4'))
             self.assertEqual(x.frames, [])
             self.assertEqual(x.missing, [])
 
         for x in path.child('not_a_sequence', 'abc.exr').scan():
-            self.assertEqual(x.filename, path.child('not_a_sequence', 'abc.exr'))
+            self.assertEqual(x, path.child('not_a_sequence', 'abc.exr'))
             self.assertEqual(x.frames, [])
             self.assertEqual(x.missing, [])
 
@@ -275,10 +280,10 @@ class TestDayuPath(TestCase):
         self.assertFalse(list(path.child('vfx_test', 'pl_0010_plt_v0002.1001.exr').scan(recursive=True)))
         self.assertFalse(list(path.child('empty_folder').scan(recursive=True)))
 
-        self.assertNotIn(path.child('ignore_test', '._DS_store'), [x.filename for x in path.scan(recursive=True)])
-        self.assertNotIn(path.child('ignore_test', '..sdf'), [x.filename for x in path.scan(recursive=True)])
-        self.assertNotIn(path.child('ignore_test', 'Thumbnail'), [x.filename for x in path.scan(recursive=True)])
-        self.assertNotIn(path.child('ignore_test', 'temp.tmp'), [x.filename for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', '._DS_store'), [x for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', '..sdf'), [x for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', 'Thumbnail'), [x for x in path.scan(recursive=True)])
+        self.assertNotIn(path.child('ignore_test', 'temp.tmp'), [x for x in path.scan(recursive=True)])
 
     def test_escape(self):
         legal_path = DayuPath('/Users/andyguo/Desktop/111.mov')
