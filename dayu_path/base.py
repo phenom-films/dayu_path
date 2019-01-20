@@ -20,18 +20,6 @@ if os.path.supports_unicode_filenames:
 class DayuPath(BASE_STRING_TYPE):
     pathlib = os.path
 
-    exists = pathlib.exists
-    lexists = pathlib.lexists
-    isfile = pathlib.isfile
-    isdir = pathlib.isdir
-    islink = pathlib.islink
-    ismount = pathlib.ismount
-
-    atime = pathlib.getatime
-    ctime = pathlib.getctime
-    mtime = pathlib.getmtime
-    size = pathlib.getsize
-
     def __new__(cls, path, frames=None, missing=None):
         if path:
             if isinstance(path, DayuPath):
@@ -153,8 +141,38 @@ class DayuPath(BASE_STRING_TYPE):
     def lstate(self):
         return os.lstat(self)
 
-    def chmod(self, mode):
-        os.chmod(mode)
+    def exists(self):
+        return self.pathlib.exists(self)
+
+    def lexists(self):
+        return self.pathlib.lexists(self)
+
+    def isfile(self):
+        return self.pathlib.isfile(self)
+
+    def isdir(self):
+        return self.pathlib.isdir(self)
+
+    def islink(self):
+        return self.pathlib.islink(self)
+
+    def ismount(self):
+        return self.pathlib.ismount(self)
+
+    def atime(self):
+        return self.pathlib.getatime(self)
+
+    def ctime(self):
+        return self.pathlib.getctime(self)
+
+    def mtime(self):
+        return self.pathlib.getmtime(self)
+
+    def size(self):
+        return self.pathlib.getsize(self)
+
+    def chmod(self, mode=0o755):
+        os.chmod(self, mode)
 
     if hasattr(os, 'chown'):
         def chown(self, uid, gid):
@@ -201,9 +219,9 @@ class DayuPath(BASE_STRING_TYPE):
 
     def copy_stat(self, dst, times=True, permission=True):
         st = os.stat(self)
-        if hasattr(os, 'utime'):
+        if hasattr(os, 'utime') and times:
             os.utime(dst, (st.st_atime, st.st_mtime))
-        if hasattr(os, 'chmod'):
+        if hasattr(os, 'chmod') and permission:
             m = stat.S_IMODE(st.st_mode)
             os.chmod(dst, m)
 
@@ -224,10 +242,10 @@ class DayuPath(BASE_STRING_TYPE):
 
     @property
     def frame(self):
-        '''
+        """
         返回解析出的帧数
         :return: int 类型。如果没有解析成功，返回-1
-        '''
+        """
         if self.ext.lower() in tuple(EXT_SINGLE_MEDIA.keys()):
             return -1
 
@@ -255,20 +273,20 @@ class DayuPath(BASE_STRING_TYPE):
 
     @property
     def pattern(self):
-        '''
+        """
         提取出当前路径的pattern 标识。
         支持 %0xd，####，$Fn 这三种形式
         :return: 如果匹配成功，返回匹配的pattern string；否则返回None
-        '''
+        """
         match = PATTERN_REGEX.match(self.stem)
         return match.group(1) or match.group(3) or match.group(4) if match else None
 
     def to_pattern(self, pattern='%'):
-        '''
+        """
         将绝对路径转换为pattern 形式的路径。
         :param pattern: '%' 表示变成%04d 类型的路径；'#' 表示变成#### 类型类型的路径；'$'表示变成$F4 类型的路径
         :return: DayuPath 对象
-        '''
+        """
         if self.ext and self.ext.lower() in tuple(EXT_SINGLE_MEDIA.keys()):
             return self
 
@@ -299,9 +317,7 @@ class DayuPath(BASE_STRING_TYPE):
         else:
             replace_string = '%0{}d'.format(len(match.group(1)))
 
-        new_name = self.name[:match.start(1)] + \
-                   replace_string + \
-                   self.name[match.end(1):]
+        new_name = self.name[:match.start(1)] + replace_string + self.name[match.end(1):]
         return DayuPath(self.parent + '/' + new_name)
 
     def __convert_dollar_pattern(self, pattern, pattern_match):
@@ -350,11 +366,11 @@ class DayuPath(BASE_STRING_TYPE):
         return re.sub("(!|\$|#|&|\"|\'|\(|\)| |\||<|>|`|;)", r'\\\1', self)
 
     def restore_pattern(self, frame):
-        '''
+        """
         将pattern 化的序列帧，回复成为正常的帧数据对路径
         :param frame: int，可以是任意的正整数
         :return: DayuPath 对象
-        '''
+        """
         if frame is None:
             return self
 
@@ -508,16 +524,3 @@ class DayuPath(BASE_STRING_TYPE):
         sub_func = getattr(self, '_show_in_{}'.format(sys.platform), None)
         if sub_func:
             sub_func(show_file=show_file)
-
-
-if __name__ == '__main__':
-    aa = DayuPath.cwd()
-    bb = DayuPath('/Users/andyguo/Desktop/test', frames=[1],
-                  missing=[2])
-    cc = DayuPath('/Users/andyguo/Desktop/123/rrr.%04d.jpg')
-    # print cc.to_pattern()
-    cc = list(cc.scan())[0]
-    print cc, cc.frames, cc.missing
-
-    dst = DayuPath('/Users/andyguo/Desktop/123/untitled folder/asdf.%04d.jpg')
-    cc.copy_sequence(dst, start=2000, keep_missing=True)
