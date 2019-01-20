@@ -245,10 +245,8 @@ class TestDayuPath(TestCase):
             self.mock_path2.child('recursive_test', 'inside', 'b_%03d.exr'): [[100, 101, 102], []]
         })
 
-        print ground_truth_result.keys()
         for x in path.scan(recursive=True):
             if x:
-                print x
                 self.assertTrue(x in ground_truth_result.keys())
                 self.assertListEqual([x.frames, x.missing], ground_truth_result[x])
 
