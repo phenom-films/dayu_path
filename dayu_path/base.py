@@ -508,16 +508,3 @@ class DayuPath(BASE_STRING_TYPE):
         sub_func = getattr(self, '_show_in_{}'.format(sys.platform), None)
         if sub_func:
             sub_func(show_file=show_file)
-
-
-if __name__ == '__main__':
-    aa = DayuPath.cwd()
-    bb = DayuPath('/Users/andyguo/Desktop/test', frames=[1],
-                  missing=[2])
-    cc = DayuPath('/Users/andyguo/Desktop/123/rrr.%04d.jpg')
-    # print cc.to_pattern()
-    cc = list(cc.scan())[0]
-    print cc, cc.frames, cc.missing
-
-    dst = DayuPath('/Users/andyguo/Desktop/123/untitled folder/asdf.%04d.jpg')
-    cc.copy_sequence(dst, start=2000, keep_missing=True)
