@@ -20,18 +20,6 @@ if os.path.supports_unicode_filenames:
 class DayuPath(BASE_STRING_TYPE):
     pathlib = os.path
 
-    exists = pathlib.exists
-    lexists = pathlib.lexists
-    isfile = pathlib.isfile
-    isdir = pathlib.isdir
-    islink = pathlib.islink
-    ismount = pathlib.ismount
-
-    atime = pathlib.getatime
-    ctime = pathlib.getctime
-    mtime = pathlib.getmtime
-    size = pathlib.getsize
-
     def __new__(cls, path, frames=None, missing=None):
         if path:
             if isinstance(path, DayuPath):
@@ -51,6 +39,36 @@ class DayuPath(BASE_STRING_TYPE):
         super(DayuPath, self).__init__()
         self.frames = frames if frames else []
         self.missing = missing if missing else []
+
+    def exists(self):
+        return self.pathlib.exists(self)
+
+    def lexists(self):
+        return self.pathlib.lexists(self)
+
+    def isfile(self):
+        return self.pathlib.isfile(self)
+
+    def isdir(self):
+        return self.pathlib.isdir(self)
+
+    def islink(self):
+        return self.pathlib.islink(self)
+
+    def ismount(self):
+        return self.pathlib.ismount(self)
+
+    def atime(self):
+        return self.pathlib.getatime(self)
+
+    def ctime(self):
+        return self.pathlib.getctime(self)
+
+    def mtime(self):
+        return self.pathlib.getmtime(self)
+
+    def size(self):
+        return self.pathlib.getsize(self)
 
     def norm(self):
         return DayuPath(self.pathlib.normpath(self))
