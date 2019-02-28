@@ -18,9 +18,21 @@ VERSION_REGEX = re.compile(r'.*([vV]\d+).*')
 
 EXT_SINGLE_MEDIA = {'.mov': {},
                     '.mp4': {},
+                    '.mxf': {},
                     '.avi': {},
                     '.r3d': {},
                     }
+
+EXT_SEQUENCE_MEDIA = {'.exr' : {},
+                      '.dpx' : {},
+                      '.tiff': {},
+                      '.tif' : {},
+                      '.png' : {},
+                      '.jpg' : {},
+                      '.bmp' : {},
+                      '.dng' : {},
+                      '.ari' : {},
+                      }
 
 SCAN_IGNORE = {'start': ('.', '..', 'Thumb'),
                'end'  : ('.tmp')}

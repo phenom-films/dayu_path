@@ -40,6 +40,36 @@ class DayuPath(BASE_STRING_TYPE):
         self.frames = frames if frames else []
         self.missing = missing if missing else []
 
+    def exists(self):
+        return self.pathlib.exists(self)
+
+    def lexists(self):
+        return self.pathlib.lexists(self)
+
+    def isfile(self):
+        return self.pathlib.isfile(self)
+
+    def isdir(self):
+        return self.pathlib.isdir(self)
+
+    def islink(self):
+        return self.pathlib.islink(self)
+
+    def ismount(self):
+        return self.pathlib.ismount(self)
+
+    def atime(self):
+        return self.pathlib.getatime(self)
+
+    def ctime(self):
+        return self.pathlib.getctime(self)
+
+    def mtime(self):
+        return self.pathlib.getmtime(self)
+
+    def size(self):
+        return self.pathlib.getsize(self)
+
     def norm(self):
         return DayuPath(self.pathlib.normpath(self))
 
@@ -447,11 +477,7 @@ class DayuPath(BASE_STRING_TYPE):
             return
 
     def scan(self, recursive=False, regex_pattern=None, ext_filters=None, function_filter=None, ignore_invisible=True):
-        from config import EXT_SINGLE_MEDIA, SCAN_IGNORE
-        if self.isfile() and self.lower().endswith(tuple(EXT_SINGLE_MEDIA.keys())):
-            yield self
-            raise StopIteration
-
+        from config import SCAN_IGNORE
         import bisect
 
         scan_path, file_flag = (self, False) if self.isdir() else (self.parent, True)
@@ -480,7 +506,7 @@ class DayuPath(BASE_STRING_TYPE):
             if file_flag:
                 k = self.absolute().to_pattern()
                 v = seq_list.get(k, None)
-                if v:
+                if v is not None:
                     k.frames = v
                     k.missing = (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else []
                     yield k
