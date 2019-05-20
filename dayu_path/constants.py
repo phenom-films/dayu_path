@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-__author__ = 'andyguo'
-
+# Import built-in modules
 import re
+
+EXT_PATTERN = {
+    '$': '$F{}',
+    '%': '%0{}d',
+    '#': None,
+}
 
 # 用于判断frame 的正则表达式
 FRAME_REGEX = re.compile(r'.*?(?<![\dvV])(\d{2,})$')
@@ -18,11 +23,25 @@ VERSION_REGEX = re.compile(r'.*([vV]\d+).*')
 
 EXT_SINGLE_MEDIA = {'.mov': {},
                     '.mp4': {},
+                    '.mxf': {},
                     '.avi': {},
                     '.r3d': {},
                     }
 
-SCAN_IGNORE = {'start': ('.', '..', 'Thumb'),
-               'end'  : ('.tmp')}
+EXT_SEQUENCE_MEDIA = {'.exr': {},
+                      '.dpx': {},
+                      '.tiff': {},
+                      '.tif': {},
+                      '.png': {},
+                      '.jpg': {},
+                      '.bmp': {},
+                      '.dng': {},
+                      '.ari': {},
+                      }
+
+SCAN_IGNORE = {
+    'start': ('.', '..', 'Thumb'),
+    'end': ('.tmp')
+}
 
 NETWORK_FILE_SYSTEM = ('nfs', 'smbfs', 'remote', 'afp', 'ftp', 'snfs')

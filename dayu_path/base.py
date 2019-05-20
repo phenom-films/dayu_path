@@ -1,15 +1,27 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
-__author__ = 'andyguo'
-
+# Import built-in modules
+import bisect
 import os
+import re
 import shutil
 import stat
+import subprocess
 
-from config import *
+# Import local modules
+from dayu_path.constants import EXT_SINGLE_MEDIA
+from dayu_path.constants import FRAME_REGEX
+from dayu_path.constants import EXT_PATTERN
+from dayu_path.constants import PATTERN_REGEX
+from dayu_path.constants import SCAN_IGNORE
+from dayu_path.constants import UNC_REGEX
+from dayu_path.constants import VERSION_REGEX
+from dayu_path.constants import WIN32_DRIVE_REGEX
+from dayu_path.errors import DayuPathBaseError
 
 BASE_STRING_TYPE = str  # Python 3 str (=unicode), or Python 2 bytes.
+
 if os.path.supports_unicode_filenames:
     try:
         BASE_STRING_TYPE = unicode  # Python 2 unicode.
@@ -30,15 +42,46 @@ class DayuPath(BASE_STRING_TYPE):
                 normalize_path = re.sub(r'^//', r'\\\\', normalize_path)
                 match = WIN32_DRIVE_REGEX.match(normalize_path)
                 if match:
-                    normalize_path = normalize_path.replace(match.group(1), match.group(1).lower()).rstrip('/')
+                    lower = match.group(1).lower()
+                    normalize_path = normalize_path.replace(match.group(1),
+                                                            lower).rstrip('/')
                 return super(DayuPath, cls).__new__(cls, normalize_path)
-
         return None
 
     def __init__(self, path, frames=None, missing=None):
         super(DayuPath, self).__init__()
         self.frames = frames if frames else []
         self.missing = missing if missing else []
+
+    def exists(self):
+        return self.pathlib.exists(self)
+
+    def lexists(self):
+        return self.pathlib.lexists(self)
+
+    def isfile(self):
+        return self.pathlib.isfile(self)
+
+    def isdir(self):
+        return self.pathlib.isdir(self)
+
+    def islink(self):
+        return self.pathlib.islink(self)
+
+    def ismount(self):
+        return self.pathlib.ismount(self)
+
+    def atime(self):
+        return self.pathlib.getatime(self)
+
+    def ctime(self):
+        return self.pathlib.getctime(self)
+
+    def mtime(self):
+        return self.pathlib.getmtime(self)
+
+    def size(self):
+        return self.pathlib.getsize(self)
 
     def norm(self):
         return DayuPath(self.pathlib.normpath(self))
@@ -99,13 +142,16 @@ class DayuPath(BASE_STRING_TYPE):
 
     def child(self, *children):
         for child in children:
-            if self.pathlib.sep in child or \
-                    '/' in child or \
-                    (self.pathlib.altsep and self.pathlib.altsep in child) or \
-                    self.pathlib.pardir == child or \
-                    self.pathlib.curdir == child:
+            if self.pathlib.sep not in child:
+                continue
+            if self.pathlib.pardir != child:
+                continue
+            if self.pathlib.curdir != child:
+                continue
+            if '/' not in child:
+                continue
+            if self.pathlib.altsep and self.pathlib.altsep in child:
                 raise ValueError('unsafe string in {}'.format(child))
-
         new_path = self.pathlib.join(self, *children)
         return DayuPath(new_path)
 
@@ -132,7 +178,9 @@ class DayuPath(BASE_STRING_TYPE):
         return sorted(result)
 
     def walk(self, topdown=True, onerror=None, followlinks=False):
-        for root, sub_folders, sub_files in os.walk(self, topdown=topdown, onerror=onerror, followlinks=followlinks):
+        for root, sub_folders, sub_files in os.walk(self, topdown=topdown,
+                                                    onerror=onerror,
+                                                    followlinks=followlinks):
             yield root, sub_folders, sub_files
 
     def state(self):
@@ -308,61 +356,41 @@ class DayuPath(BASE_STRING_TYPE):
                 return self
 
     def __convert_normal_frame_pattern(self, match, pattern):
-        if pattern == '%':
-            replace_string = '%0{}d'.format(len(match.group(1)))
-        elif pattern == '#':
-            replace_string = '#' * len(match.group(1))
-        elif pattern == '$':
-            replace_string = '$F{}'.format(len(match.group(1)))
-        else:
-            replace_string = '%0{}d'.format(len(match.group(1)))
-
+        replace_string = self.__get_pattern(pattern, len(match.group(1)))
         new_name = self.name[:match.start(1)] + replace_string + self.name[match.end(1):]
         return DayuPath(self.parent + '/' + new_name)
 
     def __convert_dollar_pattern(self, pattern, pattern_match):
-        if pattern == '%':
-            return DayuPath(self.replace(pattern_match.group(4),
-                                         '%0{}d'.format(
-                                                 pattern_match.group(5) if pattern_match.group(5) else 1)))
-        if pattern == '#':
-            return DayuPath(self.replace(pattern_match.group(4),
-                                         '#' * int(pattern_match.group(5) if pattern_match.group(5) else 1)))
-        if pattern == '$':
-            return self
-        else:
-            return DayuPath(self.replace(pattern_match.group(4),
-                                         '%0{}d'.format(
-                                                 pattern_match.group(5) if pattern_match.group(5) else 1)))
+        match = pattern_match.group
+        pattern_ = self.__get_pattern(pattern, (match(5) if match(5) else 1))
+        return DayuPath(self.replace(match(4), pattern_))
 
     def __convert_sharp_pattern(self, pattern, pattern_match):
-        if pattern == '%':
-            return DayuPath(self.replace(pattern_match.group(3),
-                                         '%0{}d'.format(len(pattern_match.group(3)))))
+        match = pattern_match.group
         if pattern == '#':
             return self
-        if pattern == '$':
-            return DayuPath(self.replace(pattern_match.group(3),
-                                         '$F{}'.format(len(pattern_match.group(3)))))
-        else:
-            return DayuPath(self.replace(pattern_match.group(3),
-                                         '%0{}d'.format(len(pattern_match.group(3)))))
+        pattern_ = self.__get_pattern(pattern, len(match(3)))
+        return DayuPath(self.replace(match(3), pattern_))
+
+    @staticmethod
+    def __get_pattern(pattern, value):
+        match = EXT_PATTERN.get(pattern, EXT_PATTERN['%'])
+        if match:
+            return match.format(value)
+        return '#' * int(value)
 
     def __convert_percentage_pattern(self, pattern, pattern_match):
-        if pattern == '%':
-            return self
-        if pattern == '#':
-            return DayuPath(self.replace(pattern_match.group(1),
-                                         '#' * int(pattern_match.group(2) if pattern_match.group(2) else 1)))
-        if pattern == '$':
-            return DayuPath(self.replace(pattern_match.group(1),
-                                         '$F{}'.format(
-                                                 int(pattern_match.group(2) if pattern_match.group(2) else 1))))
-        else:
-            return self
+        match = pattern_match.group
+        mappings = {
+            '#': '#' * int(match(2) if match(2) else 1),
+            '$': '$F{}'.format(int(match(2) if match(2) else 1))
+        }
+        frame = mappings.get(pattern)
+        if frame:
+            return DayuPath(self.replace(match(1), frame))
+        return self
 
     def escape(self):
-        import re
         return re.sub("(!|\$|#|&|\"|\'|\(|\)| |\||<|>|`|;)", r'\\\1', self)
 
     def restore_pattern(self, frame):
@@ -396,7 +424,8 @@ class DayuPath(BASE_STRING_TYPE):
         else:
             return self
 
-    def rename_sequence(self, dst_path, start=None, step=1, parents=False, keep_missing=False):
+    def rename_sequence(self, dst_path, start=None, step=1, parents=False,
+                        keep_missing=False):
         if (not self.pattern) and (not dst_path.pattern):
             self.rename(dst_path, parents=parents)
             return
@@ -407,20 +436,23 @@ class DayuPath(BASE_STRING_TYPE):
             for i in self.frames:
                 if keep_missing:
                     start += (i - prev_frame)
-                    self.restore_pattern(i).rename(dst_path.restore_pattern(start), parents=parents)
+                    start_ = dst_path.restore_pattern(start)
+                    self.restore_pattern(i).rename(start_, parents=parents)
                     prev_frame = i
                 else:
-                    self.restore_pattern(i).rename(dst_path.restore_pattern(start), parents=parents)
+                    start_ = dst_path.restore_pattern(start)
+                    self.restore_pattern(i).rename(start_, parents=parents)
                     start += step
             return
 
-        from errors import DayuPathBaseError
         raise DayuPathBaseError('maybe one of following errors: \n'
                                 '* source path without frames \n'
-                                '* source path is a pattern, but dst path is not a pattern\n')
+                                '* source path is a pattern, but dst path is '
+                                'not a pattern\n')
 
     def copy_sequence(self, dst_path, start=None, step=1,
-                      times=False, permission=False, parents=False, keep_missing=False):
+                      times=False, permission=False, parents=False,
+                      keep_missing=False):
         if (not self.pattern) and (not dst_path.pattern):
             if parents:
                 dst_path.parent.mkdir(parents=True)
@@ -446,13 +478,8 @@ class DayuPath(BASE_STRING_TYPE):
                     start += step
             return
 
-    def scan(self, recursive=False, regex_pattern=None, ext_filters=None, function_filter=None, ignore_invisible=True):
-        from config import EXT_SINGLE_MEDIA, SCAN_IGNORE
-        if self.isfile() and self.lower().endswith(tuple(EXT_SINGLE_MEDIA.keys())):
-            yield self
-            raise StopIteration
-
-        import bisect
+    def scan(self, recursive=False, regex_pattern=None, ext_filters=None,
+             function_filter=None, ignore_invisible=True):
 
         scan_path, file_flag = (self, False) if self.isdir() else (self.parent, True)
         compiled_regex = re.compile(regex_pattern) if regex_pattern else None
@@ -480,7 +507,7 @@ class DayuPath(BASE_STRING_TYPE):
             if file_flag:
                 k = self.absolute().to_pattern()
                 v = seq_list.get(k, None)
-                if v:
+                if v is not None:
                     k.frames = v
                     k.missing = (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else []
                     yield k
@@ -496,14 +523,12 @@ class DayuPath(BASE_STRING_TYPE):
                 raise StopIteration
 
     def _show_in_win32(self, show_file=False):
-        import os
         if show_file:
             os.startfile(self)
         else:
             os.startfile(self if self.isdir() else self.parent)
 
     def _show_in_darwin(self, show_file=False):
-        import subprocess
         if show_file:
             subprocess.Popen('osascript -e \'tell application "Finder" to reveal ("{}" as POSIX file)\''.format(self),
                              shell=True)
@@ -511,7 +536,6 @@ class DayuPath(BASE_STRING_TYPE):
             subprocess.Popen(['open', self if self.isdir() else self.parent])
 
     def _show_in_linux2(self, show_file=False):
-        import subprocess
         subprocess.Popen(['xdg-open', self if self.isdir() else self.parent])
 
     def show(self, show_file=False):
