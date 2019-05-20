@@ -8,11 +8,12 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 
 # Import local modules
+from dayu_path.constants import EXT_PATTERN
 from dayu_path.constants import EXT_SINGLE_MEDIA
 from dayu_path.constants import FRAME_REGEX
-from dayu_path.constants import EXT_PATTERN
 from dayu_path.constants import PATTERN_REGEX
 from dayu_path.constants import SCAN_IGNORE
 from dayu_path.constants import UNC_REGEX
@@ -23,10 +24,9 @@ from dayu_path.errors import DayuPathBaseError
 BASE_STRING_TYPE = str  # Python 3 str (=unicode), or Python 2 bytes.
 
 if os.path.supports_unicode_filenames:
-    try:
+    if sys.version_info[0] == 2:
         BASE_STRING_TYPE = unicode  # Python 2 unicode.
-    except NameError:
-        pass
+
 
 
 class DayuPath(BASE_STRING_TYPE):
@@ -37,7 +37,7 @@ class DayuPath(BASE_STRING_TYPE):
             if isinstance(path, DayuPath):
                 return path
 
-            if isinstance(path, basestring):
+            if isinstance(path, BASE_STRING_TYPE):
                 normalize_path = re.sub(r'\\', '/', path)
                 normalize_path = re.sub(r'^//', r'\\\\', normalize_path)
                 match = WIN32_DRIVE_REGEX.match(normalize_path)
