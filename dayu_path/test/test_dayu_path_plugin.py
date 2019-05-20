@@ -43,7 +43,8 @@ class TestDayuPathPlugin(TestCase):
         self.assertIn('new_key', dir(DayuPath))
         self.assertIsNone(DayuPath.new_key)
 
-        self.assertTrue(DayuPathPlugin.register_attribute('new_key_2', default_value=111))
+        self.assertTrue(DayuPathPlugin.register_attribute('new_key_2',
+                                                          default_value=111))
         self.assertIn('new_key_2', dir(DayuPath))
         self.assertEqual(DayuPath.new_key_2, 111)
 
