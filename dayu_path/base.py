@@ -37,15 +37,15 @@ class DayuPath(BASE_STRING_TYPE):
             if isinstance(path, DayuPath):
                 return path
 
-            if isinstance(path, BASE_STRING_TYPE):
-                normalize_path = re.sub(r'\\', '/', path)
-                normalize_path = re.sub(r'^//', r'\\\\', normalize_path)
-                match = WIN32_DRIVE_REGEX.match(normalize_path)
-                if match:
-                    lower = match.group(1).lower()
-                    normalize_path = normalize_path.replace(match.group(1),
-                                                            lower).rstrip('/')
-                return super(DayuPath, cls).__new__(cls, normalize_path)
+            normalize_path = re.sub(r'\\', '/', path)
+            normalize_path = re.sub(r'^//', r'\\\\', normalize_path)
+            match = WIN32_DRIVE_REGEX.match(normalize_path)
+            if match:
+                lower = match.group(1).lower()
+                normalize_path = normalize_path.replace(match.group(1),
+                                                        lower).rstrip('/')
+            return super(DayuPath, cls).__new__(cls, normalize_path)
+
         return None
 
     def __init__(self, path, frames=None, missing=None):
