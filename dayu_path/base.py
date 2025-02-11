@@ -27,7 +27,7 @@ if os.path.supports_unicode_filenames:
     if sys.version_info[0] == 2:
         BASE_STRING_TYPE = unicode  # Python 2 unicode.
 
-tttt
+222
 
 class DayuPath(BASE_STRING_TYPE):
     pathlib = os.path
