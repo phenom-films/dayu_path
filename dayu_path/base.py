@@ -499,6 +499,17 @@ class DayuPath(BASE_STRING_TYPE):
                 avaliable_files = (f for f in all_files if function_filter(f))
 
             for single_file in avaliable_files:
+                m = compiled_regex.match(single_file.name) if compiled_regex else None
+                if m and 'frame' in m.groupdict():
+                    gd = m.groupdict()
+                    base = gd.get('base')
+                    tail = gd.get('tail')
+                    if base and tail:
+                        pattern_path = DayuPath(root).child("%s.####.%s" % (base, tail)).absolute()
+                        frames_list = seq_list.setdefault(pattern_path, [])
+                        bisect.insort(frames_list, int(gd['frame']))
+                        continue
+
                 pattern_path = single_file.absolute().to_pattern()
                 frames_list = seq_list.setdefault(pattern_path, [])
                 if single_file != pattern_path:
@@ -511,7 +522,7 @@ class DayuPath(BASE_STRING_TYPE):
                     k.frames = v
                     k.missing = (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else []
                     yield k
-                raise StopIteration
+                return
 
             if seq_list:
                 for k, v in seq_list.items():
@@ -520,7 +531,7 @@ class DayuPath(BASE_STRING_TYPE):
                     yield k
 
             if not recursive:
-                raise StopIteration
+                return
 
     def _show_in_win32(self, show_file=False):
         if show_file:
