@@ -27,7 +27,6 @@ if os.path.supports_unicode_filenames:
     if sys.version_info[0] == 2:
         BASE_STRING_TYPE = unicode  # Python 2 unicode.
 
-222
 
 class DayuPath(BASE_STRING_TYPE):
     pathlib = os.path
@@ -511,7 +510,7 @@ class DayuPath(BASE_STRING_TYPE):
                     k.frames = v
                     k.missing = (sorted(set(range(v[0], v[-1] + 1)) - set(v))) if v else []
                     yield k
-                raise StopIteration
+                return
 
             if seq_list:
                 for k, v in seq_list.items():
@@ -520,7 +519,7 @@ class DayuPath(BASE_STRING_TYPE):
                     yield k
 
             if not recursive:
-                raise StopIteration
+                return
 
     def _show_in_win32(self, show_file=False):
         if show_file:
